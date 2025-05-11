@@ -78,12 +78,20 @@ class PatientProgressSummaryView(APIView):
             phoneme_progress = []
             chapters = Chapter.objects.all().order_by('chapter_number')
             
+            # Initialize counters for statistics
+            completed_chapters = 0
+            in_progress_chapters = 0
+            not_started_chapters = 0
+            total_accuracy = 0
+            accuracy_count = 0
+            
             for chapter in chapters:
                 words = chapter.words.all()
                 completed_words = 0
-                total_accuracy = 0
-                accuracy_count = 0
+                total_chapter_accuracy = 0
+                chapter_accuracy_count = 0
                 last_practiced = None
+                has_progress = False
                 
                 # Check progress for each word in the chapter
                 for word in words:
@@ -93,45 +101,53 @@ class PatientProgressSummaryView(APIView):
                     ).order_by('-date', '-time')
                     
                     if progress_records.exists():
+                        has_progress = True
                         latest_record = progress_records.first()
                         if latest_record.accuracy >= 90:  # Consider 90%+ as completed
                             completed_words += 1
                         
-                        total_accuracy += latest_record.accuracy
-                        accuracy_count += 1
+                        total_chapter_accuracy += latest_record.accuracy
+                        chapter_accuracy_count += 1
                         
                         if not last_practiced or latest_record.date > last_practiced:
                             last_practiced = latest_record.date
                 
                 # Calculate chapter progress and status
-                if words.count() > 0:
-                    progress_percentage = (completed_words / words.count()) * 100
+                word_count = words.count()
+                if word_count > 0:
+                    progress_percentage = (completed_words / word_count) * 100
                 else:
                     progress_percentage = 0
                 
-                if progress_percentage == 100:
+                # Determine chapter status
+                if word_count > 0 and completed_words == word_count:
                     status = 'completed'
-                elif progress_percentage > 0:
+                    completed_chapters += 1
+                elif has_progress:
                     status = 'in-progress'
+                    in_progress_chapters += 1
                 else:
                     status = 'not-started'
+                    not_started_chapters += 1
                 
                 # Calculate average accuracy
-                if accuracy_count > 0:
-                    chapter_accuracy = total_accuracy / accuracy_count
+                if chapter_accuracy_count > 0:
+                    chapter_accuracy = float(total_chapter_accuracy) / float(chapter_accuracy_count)
+                    total_accuracy += chapter_accuracy
+                    accuracy_count += 1
                 else:
-                    chapter_accuracy = 0
+                    chapter_accuracy = 0.0
                 
                 # Get example words (first 3)
                 example_words = list(words.values_list('word', flat=True)[:3])
                 
                 phoneme_progress.append({
                     'id': chapter.chapter_number,
-                    'phoneme': f'/{chapter.name[0].lower()}/', # Extract phoneme from chapter name
+                    'phoneme': f'/{chapter.name[0].lower()}/',
                     'exampleWords': example_words,
                     'status': status,
-                    'progress': round(progress_percentage),
-                    'accuracy': round(chapter_accuracy),
+                    'progress': round(float(progress_percentage), 1),
+                    'accuracy': round(float(chapter_accuracy), 1),
                     'lastPracticed': last_practiced.strftime('%Y-%m-%d') if last_practiced else None
                 })
             
@@ -159,15 +175,14 @@ class PatientProgressSummaryView(APIView):
                     'duration': session.duration,
                     'phonemesPracticed': list(phonemes_practiced),
                     'wordsAttempted': words_attempted,
-                    'accuracy': round(session.score)
+                    'accuracy': round(float(session.score), 1)  # Convert to float and round
                 })
             
-            # Calculate overall statistics
-            completed_chapters = sum(1 for p in phoneme_progress if p['status'] == 'completed')
-            in_progress_chapters = sum(1 for p in phoneme_progress if p['status'] == 'in-progress')
-            
-            overall_accuracies = [p['accuracy'] for p in phoneme_progress if p['accuracy'] > 0]
-            average_accuracy = sum(overall_accuracies) / len(overall_accuracies) if overall_accuracies else 0
+            # Calculate overall average accuracy
+            if accuracy_count > 0:
+                average_accuracy = float(total_accuracy) / float(accuracy_count)
+            else:
+                average_accuracy = 0.0
             
             response_data = {
                 'patient': {
@@ -181,9 +196,10 @@ class PatientProgressSummaryView(APIView):
                 'recentSessions': sessions_data,
                 'statistics': {
                     'total_sessions': recent_sessions.count(),
-                    'average_accuracy': round(average_accuracy),
+                    'average_accuracy': round(float(average_accuracy), 1),
                     'completed_phonemes': completed_chapters,
                     'in_progress_phonemes': in_progress_chapters,
+                    'not_started_phonemes': not_started_chapters
                 }
             }
             
@@ -215,7 +231,7 @@ class ChapterWordProgressView(APIView):
                     'month': record.date.strftime("%B"),
                     'date': record.date.day,
                     'trial': record.trial_number,
-                    'accuracy': round(record.accuracy)
+                    'accuracy': round(float(record.accuracy), 1)  # Round to 1 decimal place
                 })
             
             # Ensure the data format matches what GraphTab.jsx expects
