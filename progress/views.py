@@ -66,6 +66,7 @@ class SessionHistoryView(APIView):
         except Patient.DoesNotExist:
             return Response({'error': 'Patient not found'}, status=status.HTTP_404_NOT_FOUND)
 
+# Enhanced progress calculation for PatientProgressSummaryView
 class PatientProgressSummaryView(APIView):
     """Get formatted data for frontend display - matching PatientUser.jsx"""
     permission_classes = (permissions.IsAuthenticated,)
@@ -87,11 +88,18 @@ class PatientProgressSummaryView(APIView):
             
             for chapter in chapters:
                 words = chapter.words.all()
+                word_count = words.count()
+                if word_count == 0:
+                    continue  # Skip chapters with no words
+                
                 completed_words = 0
+                attempted_words = 0
+                total_word_accuracies = 0
                 total_chapter_accuracy = 0
                 chapter_accuracy_count = 0
                 last_practiced = None
                 has_progress = False
+                highest_word_accuracy = 0
                 
                 # Check progress for each word in the chapter
                 for word in words:
@@ -102,25 +110,68 @@ class PatientProgressSummaryView(APIView):
                     
                     if progress_records.exists():
                         has_progress = True
+                        attempted_words += 1
                         latest_record = progress_records.first()
+                        
+                        # Track the highest accuracy for any word
+                        if latest_record.accuracy > highest_word_accuracy:
+                            highest_word_accuracy = latest_record.accuracy
+                        
                         if latest_record.accuracy >= 90:  # Consider 90%+ as completed
                             completed_words += 1
                         
                         total_chapter_accuracy += latest_record.accuracy
                         chapter_accuracy_count += 1
                         
+                        # Track total accuracies to calculate average
+                        total_word_accuracies += latest_record.accuracy
+                        
                         if not last_practiced or latest_record.date > last_practiced:
                             last_practiced = latest_record.date
                 
-                # Calculate chapter progress and status
-                word_count = words.count()
-                if word_count > 0:
-                    progress_percentage = (completed_words / word_count) * 100
+                # Calculate chapter progress percentage
+                if completed_words == word_count:
+                    # All words completed (mastered)
+                    progress_percentage = 100.0
+                elif has_progress:
+                    # Enhanced progress calculation for in-progress chapters:
+                    # 1. Base progress from completed words
+                    completion_progress = (completed_words / word_count) * 100.0
+                    
+                    # 2. Progress from attempted words (max 20%)
+                    attempt_progress = (attempted_words / word_count) * 20.0
+                    
+                    # 3. Progress from highest word accuracy (gives credit for almost completed words)
+                    accuracy_progress = 0
+                    if highest_word_accuracy > 90:  # Changed from 50 to 90
+                        accuracy_progress = (highest_word_accuracy - 90) * 2  # Adjusted calculation based on new threshold
+                    
+                    # 4. Progress from average accuracy across all attempted words
+                    avg_accuracy = 0
+                    if attempted_words > 0:
+                        avg_accuracy = total_word_accuracies / attempted_words
+                        avg_accuracy_progress = avg_accuracy * 0.15  # Up to 15% more from average accuracy
+                    else:
+                        avg_accuracy_progress = 0
+                    
+                    # 5. Combine all progress factors with minimum 10% for any in-progress chapter
+                    progress_percentage = max(
+                        10.0,  # Minimum 10% for in-progress
+                        completion_progress +  # Full credit for completed words
+                        (attempt_progress * 0.25) +  # 25% credit for attempted words
+                        accuracy_progress +  # Credit for highest word accuracy
+                        avg_accuracy_progress  # Credit for average accuracy
+                    )
+                    
+                    # Cap at 90% for in-progress chapters (leaves room for completion)
+                    if progress_percentage > 90 and completed_words < word_count:
+                        progress_percentage = 90.0  # Changed from 95 to 90
                 else:
-                    progress_percentage = 0
+                    # No progress
+                    progress_percentage = 0.0
                 
                 # Determine chapter status
-                if word_count > 0 and completed_words == word_count:
+                if completed_words == word_count:
                     status = 'completed'
                     completed_chapters += 1
                 elif has_progress:
