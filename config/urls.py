@@ -1,6 +1,8 @@
 # config/urls.py
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -8,4 +10,9 @@ urlpatterns = [
     path('api/patients/', include('patients.urls')),
     path('api/chapters/', include('chapters.urls')),
     path('api/progress/', include('progress.urls')),
+    path('api/videos/', include('videos.urls')),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
