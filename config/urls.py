@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/chapters/', include('chapters.urls')),
     path('api/progress/', include('progress.urls')),
     path('api/videos/', include('videos.urls')),
+    path('api/inference/', include('inference.urls')),
 ]

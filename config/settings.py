@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     'chapters',
     'progress',
     'videos',
+    'inference', 
 ]
 
 MIDDLEWARE = [
@@ -167,3 +168,11 @@ LOGGING = {
         },
     },
 }
+
+# ===== ML inference paths (local only) =====
+INFER_ARTIFACTS_DIR = BASE_DIR / "inference" / "ml_artifacts"   # put model files here
+INFER_RUNTIME_DIR   = BASE_DIR / "inference" / "_runtime"        # temp scratch area
+os.makedirs(INFER_RUNTIME_DIR, exist_ok=True)
+DLIB_SHAPE_PREDICTOR_PATH = INFER_ARTIFACTS_DIR / "shape_predictor_68_face_landmarks.dat"
+REFERENCE_LANDMARKS_PATH = INFER_ARTIFACTS_DIR / "reference_landmarks.npy"
+REFERENCE_EYE_DIST_PATH  = INFER_ARTIFACTS_DIR / "reference_inter_eye_distance.npy"
