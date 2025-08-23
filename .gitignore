@@ -1,33 +1,112 @@
-# Python bytecode
+# -------------------------
+# Python bytecode & cache
+# -------------------------
 __pycache__/
 *.py[cod]
 *$py.class
 
+# -------------------------
 # Django
+# -------------------------
 *.log
+*.sqlite3
 db.sqlite3
 media/
+staticfiles/
+local_settings.py
 
-# Virtual environment
+# Django migrations (but keep __init__.py)
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# -------------------------
+# Virtual environment & dependencies
+# -------------------------
 venv/
 .env
+*.env
+*.egg-info/
+*.whl
+pip-wheel-metadata/
 
-# IDE specific files
+# -------------------------
+# IDE & Editor files
+# -------------------------
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# Local development settings
-local_settings.py
-
-# Compiled static files
-staticfiles/
-
+# -------------------------
 # Database backups
+# -------------------------
 *.sql
 *.sql.gz
 
+# -------------------------
 # System files
+# -------------------------
 .DS_Store
 Thumbs.db
+
+# -------------------------
+# Build / Packaging
+# -------------------------
+build/
+dist/
+.eggs/
+
+# -------------------------
+# Machine Learning / Deep Learning
+# -------------------------
+# Model weights / checkpoints
+*.h5
+*.ckpt
+*.ckpt.*
+*.tflite
+*.onnx
+*.pt
+*.pth
+*.pb
+
+# TensorBoard logs
+logs/
+*/logs/
+events.out.tfevents.*
+
+# Training outputs
+checkpoints/
+runs/
+outputs/
+results/
+experiments/
+
+# -------------------------
+# Jupyter / Notebooks
+# -------------------------
+.ipynb_checkpoints
+*.ipynb
+
+# -------------------------
+# Audio / Video temp
+# -------------------------
+*.wav
+*.mp3
+*.mp4
+*.avi
+*.flac
+*.m4a
+*.ogg
+*.webm
+
+# Feature / numpy arrays
+*.npy
+*.npz
+
+# -------------------------
+# Other ML cache files
+# -------------------------
+__pycache__/
+.cache/
+*.pkl
+*.joblib
